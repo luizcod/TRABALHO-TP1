@@ -45,6 +45,13 @@ public class ColetaServico {
         return repositorio.listarEntrevistadores();
     }
 
+    public void editarEntrevistador(String codigo, String novoNome) {
+        autenticacao.exigirPerfil(Perfil.PESQUISADOR);
+        Entrevistador e = repositorio.buscarEntrevistador(codigo)
+                .orElseThrow(() -> new ExcecaoRegraNegocio("Entrevistador não encontrado."));
+        e.setNome(novoNome);   // valida o nome (obrigatório)
+        repositorio.salvarEntrevistador(e);
+    }
     public void removerEntrevistador(String codigo) {
         autenticacao.exigirPerfil(Perfil.PESQUISADOR);
         boolean emUso = pesquisas.listarPesquisas().stream()
