@@ -40,8 +40,7 @@ public class UsuarioServico {
     public List<Usuario> pesquisar(String nome, Perfil perfil, Boolean ativo) {
         autenticacao.exigirPerfil(Perfil.ADMINISTRADOR);
         return repositorio.listar().stream()
-                .filter(u -> nome == null || nome.isBlank()
-                        || u.getNome().toLowerCase().contains(nome.trim().toLowerCase()))
+                .filter(u -> nome == null || nome.isBlank() || u.getNome().toLowerCase().contains(nome.trim().toLowerCase()))
                 .filter(u -> perfil == null || u.temPerfil(perfil))
                 .filter(u -> ativo == null || u.getAtivo() == ativo)
                 .collect(Collectors.toList());

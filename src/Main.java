@@ -13,6 +13,12 @@ import servicos.pesquisas.PesquisaService;
 import java.nio.file.Path;
 import java.util.EnumSet;
 
+//JavaFX imports
+import javafx.application.Application;
+import telas.App;
+import telas.Contexto;
+
+
 public class Main {
     public static void main(String[] args) {
         RepositorioUsuario repoUsuarios = new RepositorioUsuarioArquivo("dados/usuarios.dat");
@@ -41,6 +47,13 @@ public class Main {
         // Impede excluir parâmetro usado por participantes
         parametros.registrarVerificadorDeUso(coleta::parametroEmUso);
 
-        // as telas entram aqui depois
+        // telas
+        Contexto.usuarios = usuarios;
+        Contexto.parametros = parametros;
+        Contexto.pesquisas = pesquisas;
+        Contexto.coleta = coleta;
+        Contexto.analise = analise;
+
+        Application.launch(App.class, args);   // abre a interface
     }
 }

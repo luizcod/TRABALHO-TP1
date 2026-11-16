@@ -97,8 +97,6 @@ public class Autenticacao {
 
     // versão booleana do exigir perfil
     public synchronized boolean temPermissao(Perfil perfil) {
-        return usuarioLogado != null
-            && usuarioLogado.getAtivo()
-            && usuarioLogado.podeAcessar(perfil);
+        return usuarioLogado != null && usuarioLogado.getAtivo() && usuarioLogado.podeAcessar(perfil);
     }
 }

@@ -49,7 +49,7 @@ public class Usuario implements Serializable{
         return perfis.contains(perfil);
     }
 
-                //Admin tem acesso total
+    //Admin tem acesso total
     public boolean podeAcessar(Perfil perfilExigido) {
         return perfis.contains(Perfil.ADMINISTRADOR) || perfis.contains(perfilExigido);
     }
