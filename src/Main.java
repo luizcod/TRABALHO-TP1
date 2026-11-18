@@ -41,6 +41,7 @@ public class Main {
         // Impede excluir parâmetro usado por participantes
         parametros.registrarVerificadorDeUso(coleta::parametroEmUso);
 
-        // as telas entram aqui depois
+        Autenticacao.getInstancia().login("admin@sistema.com", "admin1234");
+        telas.AppColeta.iniciar(coleta, pesquisas, parametros, "entrevistadores");
     }
 }

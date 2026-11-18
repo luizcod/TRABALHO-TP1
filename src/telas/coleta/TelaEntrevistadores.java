@@ -1,273 +1,257 @@
 package telas.coleta;
 
+import telas.BarraNavegacao;
+import telas.Estilo;
 import dominio.coleta.Entrevistador;
 import excecoes.ExcecaoRegraNegocio;
+import javafx.beans.property.ReadOnlyStringWrapper;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.TableCell;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
+import javafx.scene.control.TextField;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
+import javafx.stage.Stage;
 import servicos.coleta.ColetaServico;
 
-import javax.swing.*;
-import javax.swing.border.EmptyBorder;
-import javax.swing.border.LineBorder;
-import javax.swing.table.DefaultTableModel;
-import java.awt.*;
-import java.util.List;
+import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
- * Tela "Gerenciar Entrevistadores" (módulo Coleta e Amostra).
- * Cadastrar, listar, editar o nome e remover. O código é imutável depois de cadastrado.
+ * Tela "Entrevistadores" (Pesquisador), em JavaFX. À esquerda, o formulário de cadastro
+ * (código e nome); à direita, a tabela com busca e o botão de remover. As regras (código
+ * repetido, entrevistador com entrevistas) ficam no {@link ColetaServico}.
  */
-public class TelaEntrevistadores extends JPanel {
-
-    private static final Color AZUL = new Color(0x3B3F58);
-    private static final Color FUNDO = new Color(0xF3F4F6);
-    private static final Color BORDA = new Color(0xD1D5DB);
-    private static final Color ERRO_TEXTO = new Color(0xC0392B);
-    private static final Color ERRO_FUNDO = new Color(0xFDECEC);
-    private static final Color OK_TEXTO = new Color(0x1E7B3A);
-    private static final Color OK_FUNDO = new Color(0xE8F5EC);
-
+public class TelaEntrevistadores {
     private final ColetaServico coleta;
 
-    private final JTextField tfCodigo = new JTextField();
-    private final JTextField tfNome = new JTextField();
-    private final JButton btSalvar = new JButton("Cadastrar");
-    private final JButton btNovo = new JButton("Novo");
-    private final JButton btEditar = new JButton("Editar selecionado");
-    private final JButton btRemover = new JButton("Remover selecionado");
-    private final JLabel lbMensagem = new JLabel(" ");
+    private final BorderPane raiz = new BorderPane();
+    private final ObservableList<Entrevistador> todos = FXCollections.observableArrayList();
+    private final FilteredList<Entrevistador> filtrados = new FilteredList<>(todos, e -> true);
+    private final TableView<Entrevistador> tabela = new TableView<>(filtrados);
 
-    private final DefaultTableModel modelo = new DefaultTableModel(new Object[]{"Código", "Nome"}, 0) {
-        @Override
-        public boolean isCellEditable(int row, int col) { return false; }
-    };
-    private final JTable tabela = new JTable(modelo);
+    private final TextField campoCodigo = Estilo.campoTexto();
+    private final TextField campoNome = Estilo.campoTexto();
+    private final TextField campoBusca = Estilo.campoTexto();
+    private final Label mensagem = new Label(" ");
 
-    /** Código do entrevistador em edição (null = cadastrando um novo). */
-    private String emEdicao;
-
-    public TelaEntrevistadores(ColetaServico coleta) {
+    /** @param aoNavegar recebe o nome do item clicado na barra ("Início", "Pesquisas", ..., "Sair"). */
+    public TelaEntrevistadores(ColetaServico coleta, Consumer<String> aoNavegar) {
         this.coleta = coleta;
-        montarLayout();
-        recarregarListas();
+
+        raiz.setStyle("-fx-background-color: " + Estilo.FUNDO + ";");
+        raiz.setTop(new BarraNavegacao("Coleta", aoNavegar));
+        raiz.setCenter(montarArea());
+
+        campoBusca.setPromptText("Buscar por código ou nome");
+        campoBusca.textProperty().addListener((obs, antigo, texto) -> filtrar(texto));
+        recarregar();
+    }
+
+    /** Conteúdo da tela, para colocar numa Scene. */
+    public Parent getRoot() {
+        return raiz;
+    }
+
+    /** Mostra a tela numa janela 1280x720. */
+    public void abrir(Stage stage) {
+        stage.setTitle("Entrevistadores");
+        stage.setScene(new Scene(raiz, 1280, 720));
+        stage.show();
     }
 
     // =====================================================================
-    //  Layout
+    // Layout
     // =====================================================================
 
-    private void montarLayout() {
-        setLayout(new BorderLayout());
-        setBackground(FUNDO);
-        setBorder(new EmptyBorder(16, 24, 16, 24));
+    private ScrollPane montarArea() {
+        Label titulo = new Label("Entrevistadores");
+        titulo.setStyle(Estilo.fonte(22, true) + "-fx-text-fill: " + Estilo.TITULO_CLARO + ";");
 
-        JLabel titulo = new JLabel("Gerenciar Entrevistadores", SwingConstants.CENTER);
-        titulo.setFont(titulo.getFont().deriveFont(Font.BOLD, 20f));
-        titulo.setForeground(Color.WHITE);
-        titulo.setOpaque(true);
-        titulo.setBackground(AZUL);
-        titulo.setBorder(new EmptyBorder(12, 0, 12, 0));
+        HBox cartoes = new HBox(20, montarFormulario(), montarLista());
+        VBox coluna = new VBox(18, titulo, cartoes, mensagem);
+        coluna.setPrefWidth(900);
+        coluna.setMaxWidth(900);
 
-        JPanel corpo = new JPanel(new BorderLayout(0, 12));
-        corpo.setBackground(Color.WHITE);
-        corpo.setBorder(new EmptyBorder(14, 16, 14, 16));
-        corpo.add(montarFormulario(), BorderLayout.NORTH);
-        corpo.add(montarTabela(), BorderLayout.CENTER);
+        mensagem.setWrapText(true);
+        mensagem.setStyle(Estilo.fonte(13, false));
+        mensagem.setTextFill(Color.web(Estilo.ERRO));
 
-        lbMensagem.setOpaque(true);
-        lbMensagem.setBorder(new EmptyBorder(6, 10, 6, 10));
-        lbMensagem.setFont(lbMensagem.getFont().deriveFont(12f));
-        JPanel rodape = new JPanel(new BorderLayout());
-        rodape.setBackground(Color.WHITE);
-        rodape.setBorder(new EmptyBorder(0, 16, 12, 16));
-        rodape.add(lbMensagem, BorderLayout.CENTER);
+        HBox fundo = new HBox(coluna);
+        fundo.setAlignment(Pos.TOP_CENTER);
+        fundo.setPadding(new Insets(28));
+        fundo.setStyle("-fx-background-color: " + Estilo.FUNDO + ";");
 
-        JPanel cartao = new JPanel(new BorderLayout());
-        cartao.setBorder(new LineBorder(BORDA));
-        cartao.add(titulo, BorderLayout.NORTH);
-        cartao.add(corpo, BorderLayout.CENTER);
-        cartao.add(rodape, BorderLayout.SOUTH);
-        add(cartao, BorderLayout.CENTER);
-
-        btSalvar.setBackground(AZUL);
-        btSalvar.setForeground(Color.WHITE);
-        btSalvar.setOpaque(true);
-        btSalvar.setBorderPainted(false);
-
-        btSalvar.addActionListener(e -> salvar());
-        btNovo.addActionListener(e -> novo());
-        btEditar.addActionListener(e -> editarSelecionado());
-        btRemover.addActionListener(e -> removerSelecionado());
+        ScrollPane rolagem = new ScrollPane(fundo);
+        rolagem.setFitToWidth(true);
+        rolagem.setFitToHeight(true);
+        rolagem.setStyle("-fx-background: " + Estilo.FUNDO + "; -fx-background-color: " + Estilo.FUNDO + ";"
+                + " -fx-border-color: transparent;");
+        return rolagem;
     }
 
-    private JPanel montarFormulario() {
-        JPanel p = new JPanel(new GridBagLayout());
-        p.setOpaque(false);
-        p.setBorder(BorderFactory.createTitledBorder(new LineBorder(BORDA), "Dados do entrevistador"));
-        GridBagConstraints c = new GridBagConstraints();
-        c.insets = new Insets(2, 6, 2, 6);
-        c.fill = GridBagConstraints.HORIZONTAL;
+    private VBox montarFormulario() {
+        Button cadastrar = Estilo.botaoPrincipal("Cadastrar");
+        cadastrar.setOnAction(e -> cadastrar());
+        campoNome.setOnAction(e -> cadastrar());   // Enter no campo Nome também cadastra
 
-        c.gridx = 0; c.gridy = 0; c.weightx = 0.3;
-        p.add(rotulado("Código", tfCodigo), c);
-        c.gridx = 1; c.weightx = 0.7;
-        p.add(rotulado("Nome", tfNome), c);
+        Label aviso = new Label("O código não pode ser alterado após o cadastro.");
+        aviso.setWrapText(true);
+        aviso.setStyle(Estilo.fonte(12, false) + "-fx-text-fill: #6B7280;");
 
-        JPanel botoes = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
-        botoes.setOpaque(false);
-        botoes.add(btSalvar);
-        botoes.add(btNovo);
-        c.gridx = 0; c.gridy = 1; c.gridwidth = 2; c.weightx = 1;
-        p.add(botoes, c);
-        return p;
+        VBox corpo = new VBox(6,
+                Estilo.rotulo("Código"), campoCodigo,
+                espaco(8), Estilo.rotulo("Nome"), campoNome,
+                espaco(10), aviso,
+                espaco(10), cadastrar);
+        corpo.setPadding(new Insets(22, 22, 22, 22));
+        cadastrar.setMaxWidth(Double.MAX_VALUE);
+
+        VBox cartao = new VBox(Estilo.cabecalhoCartao("Novo Entrevistador", 15, 52), corpo);
+        cartao.setPrefWidth(300);
+        cartao.setMinWidth(300);
+        cartao.setMaxWidth(300);
+        cartao.setStyle("-fx-background-color: white; -fx-border-color: " + Estilo.BORDA + ";");
+        cartao.setAlignment(Pos.TOP_CENTER);
+        return cartao;
     }
 
-    private JPanel montarTabela() {
-        tabela.setRowHeight(24);
-        tabela.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        tabela.getTableHeader().setReorderingAllowed(false);
-        tabela.getColumnModel().getColumn(0).setMaxWidth(160);
-        tabela.addMouseListener(new java.awt.event.MouseAdapter() {
+    private VBox montarLista() {
+        configurarTabela();
+
+        VBox corpo = new VBox(12, campoBusca, tabela);
+        corpo.setPadding(new Insets(18));
+        VBox.setVgrow(tabela, Priority.ALWAYS);
+
+        VBox cartao = new VBox(Estilo.cabecalhoCartao("Entrevistadores cadastrados", 15, 52), corpo);
+        VBox.setVgrow(corpo, Priority.ALWAYS);
+        HBox.setHgrow(cartao, Priority.ALWAYS);
+        cartao.setStyle("-fx-background-color: white; -fx-border-color: " + Estilo.BORDA + ";");
+        return cartao;
+    }
+
+    @SuppressWarnings("deprecation")
+    private void configurarTabela() {
+        TableColumn<Entrevistador, String> colCodigo = new TableColumn<>("Código");
+        colCodigo.setCellValueFactory(c -> new ReadOnlyStringWrapper(c.getValue().getCodigo()));
+        TableColumn<Entrevistador, String> colNome = new TableColumn<>("Nome");
+        colNome.setCellValueFactory(c -> new ReadOnlyStringWrapper(c.getValue().getNome()));
+
+        TableColumn<Entrevistador, Void> colAcoes = new TableColumn<>("Ações");
+        colAcoes.setSortable(false);
+        colAcoes.setCellFactory(coluna -> new TableCell<Entrevistador, Void>() {
+            private final Button remover = Estilo.botaoSecundario("Remover");
+
+            {
+                remover.setPrefHeight(30);
+                remover.setMinHeight(30);
+                remover.setOnAction(e -> remover(getTableView().getItems().get(getIndex())));
+            }
+
             @Override
-            public void mouseClicked(java.awt.event.MouseEvent e) {
-                if (e.getClickCount() == 2) editarSelecionado();
+            protected void updateItem(Void item, boolean vazio) {
+                super.updateItem(item, vazio);
+                setGraphic(vazio ? null : remover);
             }
         });
 
-        JScrollPane rolagem = new JScrollPane(tabela);
-        rolagem.setBorder(new LineBorder(BORDA));
-        rolagem.getViewport().setBackground(Color.WHITE);
-
-        JPanel acoes = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
-        acoes.setOpaque(false);
-        acoes.add(btEditar);
-        acoes.add(btRemover);
-
-        JLabel t = new JLabel("Entrevistadores cadastrados");
-        t.setFont(t.getFont().deriveFont(Font.BOLD));
-
-        JPanel p = new JPanel(new BorderLayout(0, 6));
-        p.setOpaque(false);
-        p.add(t, BorderLayout.NORTH);
-        p.add(rolagem, BorderLayout.CENTER);
-        p.add(acoes, BorderLayout.SOUTH);
-        return p;
+        tabela.getColumns().add(colCodigo);
+        tabela.getColumns().add(colNome);
+        tabela.getColumns().add(colAcoes);
+        tabela.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        tabela.setPlaceholder(new Label("Nenhum entrevistador encontrado."));
+        tabela.setStyle(Estilo.fonte(13, false));
+        tabela.setMinHeight(300);
     }
 
-    private static JPanel rotulado(String rotulo, JComponent campo) {
-        JPanel celula = new JPanel(new BorderLayout(0, 2));
-        celula.setOpaque(false);
-        JLabel l = new JLabel(rotulo);
-        l.setFont(l.getFont().deriveFont(11f));
-        celula.add(l, BorderLayout.NORTH);
-        celula.add(campo, BorderLayout.CENTER);
-        return celula;
+    private static VBox espaco(double altura) {
+        VBox v = new VBox();
+        v.setMinHeight(altura);
+        v.setPrefHeight(altura);
+        return v;
     }
 
     // =====================================================================
-    //  Dados e ações
+    // Ações
     // =====================================================================
 
-    /** Recarrega a tabela (chame ao abrir a aba Coleta). */
-    public final void recarregarListas() {
-        modelo.setRowCount(0);
+    private void recarregar() {
         try {
-            List<Entrevistador> lista = coleta.listarEntrevistadores();
-            for (Entrevistador e : lista) {
-                modelo.addRow(new Object[]{e.getCodigo(), e.getNome()});
-            }
-        } catch (RuntimeException ex) {
-            mostrarErro(ex.getMessage());
+            todos.setAll(coleta.listarEntrevistadores());
+        } catch (ExcecaoRegraNegocio e) {
+            mostrarErro(e.getMessage());
         }
     }
 
-    private void salvar() {
+    private void filtrar(String texto) {
+        String busca = texto == null ? "" : texto.trim().toLowerCase();
+        filtrados.setPredicate(e -> busca.isEmpty()
+                || e.getCodigo().toLowerCase().contains(busca)
+                || e.getNome().toLowerCase().contains(busca));
+    }
+
+    private void cadastrar() {
         limparMensagem();
         try {
-            if (emEdicao == null) {
-                Entrevistador novo = coleta.cadastrarEntrevistador(tfCodigo.getText(), tfNome.getText());
-                recarregarListas();
-                novo();
-                mostrarSucesso("Entrevistador " + novo.getCodigo() + " cadastrado.");
-            } else {
-                coleta.editarEntrevistador(emEdicao, tfNome.getText());
-                String codigo = emEdicao;
-                recarregarListas();
-                novo();
-                mostrarSucesso("Entrevistador " + codigo + " atualizado.");
-            }
-        } catch (ExcecaoRegraNegocio ex) {
-            mostrarErro(ex.getMessage());
-        } catch (RuntimeException ex) {
-            mostrarErro("Erro inesperado: " + ex.getMessage());
+            Entrevistador novo = coleta.cadastrarEntrevistador(campoCodigo.getText(), campoNome.getText());
+            todos.add(novo);
+            campoCodigo.clear();
+            campoNome.clear();
+            campoCodigo.requestFocus();
+            mostrarSucesso("Entrevistador " + novo.getCodigo() + " cadastrado com sucesso.");
+        } catch (ExcecaoRegraNegocio e) {
+            mostrarErro(e.getMessage());   // campo vazio ou código repetido
         }
     }
 
-    private void editarSelecionado() {
-        String codigo = codigoSelecionado();
-        if (codigo == null) return;
+    private void remover(Entrevistador entrevistador) {
         limparMensagem();
-        emEdicao = codigo;
-        tfCodigo.setText(codigo);
-        tfCodigo.setEnabled(false);   // o código não muda
-        tfNome.setText((String) modelo.getValueAt(tabela.getSelectedRow(), 1));
-        btSalvar.setText("Salvar alterações");
-        tfNome.requestFocus();
-    }
-
-    private void removerSelecionado() {
-        String codigo = codigoSelecionado();
-        if (codigo == null) return;
-        int r = JOptionPane.showConfirmDialog(this,
-                "Remover o entrevistador " + codigo + "?", "Remover", JOptionPane.YES_NO_OPTION);
-        if (r != JOptionPane.YES_OPTION) return;
-        limparMensagem();
+        Alert confirmacao = new Alert(Alert.AlertType.CONFIRMATION,
+                "Remover o entrevistador " + entrevistador.getCodigo() + " – " + entrevistador.getNome() + "?",
+                ButtonType.YES, ButtonType.NO);
+        confirmacao.setTitle("Remover entrevistador");
+        confirmacao.setHeaderText(null);
+        Optional<ButtonType> resposta = confirmacao.showAndWait();
+        if (resposta.isEmpty() || resposta.get() != ButtonType.YES) return;
         try {
-            coleta.removerEntrevistador(codigo);
-            recarregarListas();
-            novo();
-            mostrarSucesso("Entrevistador " + codigo + " removido.");
-        } catch (ExcecaoRegraNegocio ex) {
-            mostrarErro(ex.getMessage());
-        } catch (RuntimeException ex) {
-            mostrarErro("Erro inesperado: " + ex.getMessage());
+            coleta.removerEntrevistador(entrevistador.getCodigo());
+            todos.remove(entrevistador);
+            mostrarSucesso("Entrevistador removido.");
+        } catch (ExcecaoRegraNegocio e) {
+            mostrarErro(e.getMessage());   // ex.: o entrevistador possui entrevistas
         }
     }
 
-    /** Volta o formulário para o modo "cadastrar". */
-    private void novo() {
-        emEdicao = null;
-        tfCodigo.setText("");
-        tfCodigo.setEnabled(true);
-        tfNome.setText("");
-        btSalvar.setText("Cadastrar");
-        tabela.clearSelection();
-    }
-
-    private String codigoSelecionado() {
-        int linha = tabela.getSelectedRow();
-        if (linha < 0) {
-            mostrarErro("Selecione um entrevistador na tabela.");
-            return null;
-        }
-        return (String) modelo.getValueAt(linha, 0);
-    }
-
-    // ---- mensagens ----
+    // =====================================================================
+    // Mensagens
+    // =====================================================================
 
     private void mostrarErro(String texto) {
-        lbMensagem.setText(texto == null ? "Erro." : texto);
-        lbMensagem.setForeground(ERRO_TEXTO);
-        lbMensagem.setBackground(ERRO_FUNDO);
+        mensagem.setTextFill(Color.web(Estilo.ERRO));
+        mensagem.setText(texto);
     }
 
     private void mostrarSucesso(String texto) {
-        lbMensagem.setText(texto);
-        lbMensagem.setForeground(OK_TEXTO);
-        lbMensagem.setBackground(OK_FUNDO);
+        mensagem.setTextFill(Color.web(Estilo.ARDOSIA));
+        mensagem.setText(texto);
     }
 
     private void limparMensagem() {
-        lbMensagem.setText(" ");
-        lbMensagem.setForeground(Color.BLACK);
-        lbMensagem.setBackground(Color.WHITE);
+        mensagem.setText(" ");
     }
 }
