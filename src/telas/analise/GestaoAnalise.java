@@ -3,20 +3,25 @@ package telas.analise;
 import dominio.analiseEstatistica.Dimensao;
 import dominio.analiseEstatistica.FiltroRelatorio;
 import dominio.analiseEstatistica.PesquisaResumo;
+import dominio.analiseEstatistica.PesquisaResumo.Situacao;
 import dominio.analiseEstatistica.Relatorio;
 import dominio.analiseEstatistica.Resultado;
 import persistencia.analiseEstatistica.FormatoExportacao;
-import excecoes.ExcecaoRegraNegocio;
 import telas.Contexto;
 import telas.Tela;
 
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.stage.FileChooser;
+import javafx.scene.Node;
 import javafx.scene.Parent;
+import javafx.scene.chart.BarChart;
+import javafx.scene.chart.CategoryAxis;
+import javafx.scene.chart.NumberAxis;
+import javafx.scene.chart.XYChart;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
+import javafx.stage.FileChooser;
 
 import java.io.File;
 import java.nio.file.Path;
@@ -25,32 +30,64 @@ import java.util.List;
 
 public class GestaoAnalise implements Tela {
 
+    // --------------------------------------------------
+    // CORES
+    // --------------------------------------------------
+
+    private static final String AZUL = "#3B3F58";
+    private static final String FUNDO = "#F3F4F6";
+    private static final String BORDA = "#D1D5DB";
+    private static final String TEXTO_SUAVE = "#64748B";
+
+    // --------------------------------------------------
+    // ESTRUTURA GERAL
+    // --------------------------------------------------
+
     private final BorderPane raiz = new BorderPane();
-    private final VBox conteudo = new VBox(15);
+    private final VBox conteudo = new VBox(18);
+    private final ScrollPane rolagem = new ScrollPane(conteudo);
+    private boolean inicializado = false;
 
     private final Button btnResultados = new Button("Resultados");
     private final Button btnComparacoes = new Button("Comparações");
     private final Button btnRelatorios = new Button("Relatórios");
 
-    // Resultados
+    // --------------------------------------------------
+    // RESULTADOS
+    // --------------------------------------------------
+
     private final ComboBox<PesquisaResumo> selecaoPesquisa = new ComboBox<>();
     private final TextField campoPergunta = new TextField("Q1");
     private final Button btnProcessar = new Button("Processar pesquisa");
 
-    private final Label situacaoPesquisa = new Label();
+    private final Label situacaoBadge = new Label("—");
+    private final Label dicaProcessamento = new Label();
     private final Label totalRespostas = new Label("—");
     private final Label respostasValidas = new Label("—");
     private final Label mensagem = new Label();
-    private final VBox distribuicao = new VBox(10);
+    private final VBox distribuicao = new VBox(4);
+    private final VBox painelResultado = new VBox(18);
 
-    // Comparações
+    private final CategoryAxis eixoX = new CategoryAxis();
+    private final NumberAxis eixoY = new NumberAxis();
+    private final BarChart<String, Number> grafico = new BarChart<>(eixoX, eixoY);
+
+    // --------------------------------------------------
+    // COMPARAÇÕES
+    // --------------------------------------------------
+
     private final ComboBox<PesquisaResumo> pesquisaA = new ComboBox<>();
     private final ComboBox<PesquisaResumo> pesquisaB = new ComboBox<>();
     private final TextField perguntaA = new TextField("Q1");
     private final TextField perguntaB = new TextField("Q1");
+    private final Button btnComparar = new Button("Comparar pesquisas");
+    private final Label dicaComparacao = new Label();
     private final Label mensagemComparacao = new Label();
 
-    // Relatórios
+    // --------------------------------------------------
+    // RELATÓRIOS
+    // --------------------------------------------------
+
     private final ComboBox<PesquisaResumo> pesquisaRelatorio = new ComboBox<>();
     private final TextField perguntaRelatorio = new TextField("Q1");
     private final DatePicker dataInicio = new DatePicker();
@@ -59,25 +96,47 @@ public class GestaoAnalise implements Tela {
     private final TextField valorCaracteristica = new TextField();
     private final CheckBox incluirCruzamentos =
             new CheckBox("Incluir cruzamentos entre características");
-
+    private final Button btnGerar = new Button("Gerar relatório");
+    private final Label dicaRelatorio = new Label();
     private final Label mensagemRelatorio = new Label();
 
     // Relatório atual exibido na interface
     private final TextArea areaRelatorio = new TextArea();
     private Relatorio relatorioAtual;
 
-    private static final String AZUL = "#3B3F58";
-    private static final String FUNDO = "#F3F4F6";
-    private static final String BORDA = "#D1D5DB";
+    // --------------------------------------------------
+    // INICIALIZAÇÃO
+    // --------------------------------------------------
 
     @Override
     public Parent getRoot() {
-        raiz.setStyle("-fx-background-color: " + FUNDO + ";");
-        raiz.setTop(criarCabecalho());
+        if (!inicializado) {
+            inicializado = true;
 
-        configurarAreaRelatorio();
+            raiz.setStyle("-fx-background-color: " + FUNDO + ";");
+            raiz.setTop(criarCabecalho());
+
+            rolagem.setFitToWidth(true);
+            rolagem.setStyle(
+                "-fx-background: " + FUNDO + ";" +
+                "-fx-background-color: " + FUNDO + ";"
+            );
+            raiz.setCenter(rolagem);
+
+            configurarAreaRelatorio();
+            configurarGrafico();
+            configurarListeners();
+
+            limparFeedback(mensagem);
+            limparFeedback(mensagemComparacao);
+            limparFeedback(mensagemRelatorio);
+
+            painelResultado.setVisible(false);
+            painelResultado.setManaged(false);
+        }
+
+        carregarPesquisas(true);
         mostrarAba("Resultados");
-        carregarPesquisas();
 
         return raiz;
     }
@@ -93,15 +152,11 @@ public class GestaoAnalise implements Tela {
         Label descricao = new Label(
             "Processamento de pesquisas, resultados e relatórios"
         );
-        descricao.setStyle("-fx-text-fill: #64748B;");
+        descricao.setStyle("-fx-text-fill: " + TEXTO_SUAVE + ";");
 
         HBox navegacao = new HBox(10);
         navegacao.setAlignment(Pos.CENTER_LEFT);
         navegacao.setPadding(new Insets(15, 0, 0, 0));
-
-        configurarBotao(btnResultados);
-        configurarBotao(btnComparacoes);
-        configurarBotao(btnRelatorios);
 
         btnResultados.setOnAction(e -> mostrarAba("Resultados"));
         btnComparacoes.setOnAction(e -> mostrarAba("Comparações"));
@@ -112,7 +167,7 @@ public class GestaoAnalise implements Tela {
         );
 
         VBox cabecalho = new VBox(8, titulo, descricao, navegacao);
-        cabecalho.setPadding(new Insets(24));
+        cabecalho.setPadding(new Insets(24, 24, 18, 24));
         cabecalho.setStyle(
             "-fx-background-color: white;" +
             "-fx-border-color: transparent transparent " + BORDA + " transparent;"
@@ -121,9 +176,24 @@ public class GestaoAnalise implements Tela {
         return cabecalho;
     }
 
+    private void configurarListeners() {
+        selecaoPesquisa.valueProperty().addListener(
+            (obs, antigo, novo) -> atualizarEstadoBotoes());
+        pesquisaA.valueProperty().addListener(
+            (obs, antigo, novo) -> atualizarEstadoBotoes());
+        pesquisaB.valueProperty().addListener(
+            (obs, antigo, novo) -> atualizarEstadoBotoes());
+        pesquisaRelatorio.valueProperty().addListener(
+            (obs, antigo, novo) -> atualizarEstadoBotoes());
+    }
+
     private void mostrarAba(String aba) {
         conteudo.getChildren().clear();
         conteudo.setPadding(new Insets(24));
+
+        estilizarNavegacao(btnResultados, aba.equals("Resultados"));
+        estilizarNavegacao(btnComparacoes, aba.equals("Comparações"));
+        estilizarNavegacao(btnRelatorios, aba.equals("Relatórios"));
 
         switch (aba) {
             case "Resultados" ->
@@ -136,7 +206,36 @@ public class GestaoAnalise implements Tela {
                 conteudo.getChildren().add(criarAbaRelatorios());
         }
 
-        raiz.setCenter(conteudo);
+        rolagem.setVvalue(0);
+        atualizarEstadoBotoes();
+    }
+
+    // --------------------------------------------------
+    // ESTILOS REUTILIZÁVEIS
+    // --------------------------------------------------
+
+    private void estilizarNavegacao(Button botao, boolean ativo) {
+        String base =
+            "-fx-font-size: 13px;" +
+            "-fx-padding: 9px 18px;" +
+            "-fx-background-radius: 5px;" +
+            "-fx-border-radius: 5px;" +
+            "-fx-cursor: hand;";
+
+        if (ativo) {
+            botao.setStyle(base +
+                "-fx-background-color: " + AZUL + ";" +
+                "-fx-text-fill: white;" +
+                "-fx-font-weight: bold;" +
+                "-fx-border-color: " + AZUL + ";"
+            );
+        } else {
+            botao.setStyle(base +
+                "-fx-background-color: white;" +
+                "-fx-text-fill: " + AZUL + ";" +
+                "-fx-border-color: " + BORDA + ";"
+            );
+        }
     }
 
     private void configurarBotao(Button botao) {
@@ -146,6 +245,19 @@ public class GestaoAnalise implements Tela {
             "-fx-font-size: 13px;" +
             "-fx-padding: 9px 18px;" +
             "-fx-background-radius: 5px;" +
+            "-fx-cursor: hand;"
+        );
+    }
+
+    private void configurarBotaoSecundario(Button botao) {
+        botao.setStyle(
+            "-fx-background-color: white;" +
+            "-fx-text-fill: " + AZUL + ";" +
+            "-fx-font-size: 13px;" +
+            "-fx-padding: 8px 16px;" +
+            "-fx-background-radius: 5px;" +
+            "-fx-border-color: " + AZUL + ";" +
+            "-fx-border-radius: 5px;" +
             "-fx-cursor: hand;"
         );
     }
@@ -160,11 +272,212 @@ public class GestaoAnalise implements Tela {
         return titulo;
     }
 
-    private void configurarComboPesquisa(
-        ComboBox<PesquisaResumo> combo
+    private Label criarTextoSuave(String texto) {
+        Label rotulo = new Label(texto);
+        rotulo.setWrapText(true);
+        rotulo.setStyle("-fx-text-fill: " + TEXTO_SUAVE + ";");
+        return rotulo;
+    }
+
+    private Label criarRotulo(String texto) {
+        Label rotulo = new Label(texto);
+        rotulo.setStyle(
+            "-fx-text-fill: #475569;" +
+            "-fx-font-weight: bold;"
+        );
+        return rotulo;
+    }
+
+    private VBox criarCartao(String titulo, Node... filhos) {
+        VBox cartao = new VBox(12);
+        cartao.setPadding(new Insets(20));
+        cartao.setStyle(
+            "-fx-background-color: white;" +
+            "-fx-border-color: " + BORDA + ";" +
+            "-fx-border-radius: 8px;" +
+            "-fx-background-radius: 8px;" +
+            "-fx-effect: dropshadow(gaussian, rgba(15,23,42,0.06), 8, 0, 0, 2);"
+        );
+
+        if (titulo != null) {
+            Label tituloCartao = new Label(titulo);
+            tituloCartao.setStyle(
+                "-fx-font-size: 16px;" +
+                "-fx-font-weight: bold;" +
+                "-fx-text-fill: " + AZUL + ";"
+            );
+            cartao.getChildren().add(tituloCartao);
+        }
+
+        cartao.getChildren().addAll(filhos);
+        return cartao;
+    }
+
+    private VBox criarIndicador(String titulo, Label valor) {
+        Label rotulo = new Label(titulo);
+        rotulo.setStyle("-fx-text-fill: " + TEXTO_SUAVE + "; -fx-font-size: 12px;");
+
+        valor.setStyle(
+            "-fx-font-size: 26px;" +
+            "-fx-font-weight: bold;" +
+            "-fx-text-fill: " + AZUL + ";"
+        );
+
+        VBox indicador = new VBox(4, rotulo, valor);
+        indicador.setPadding(new Insets(16, 24, 16, 24));
+        indicador.setMinWidth(190);
+        indicador.setStyle(
+            "-fx-background-color: white;" +
+            "-fx-border-color: " + BORDA + ";" +
+            "-fx-border-radius: 8px;" +
+            "-fx-background-radius: 8px;" +
+            "-fx-effect: dropshadow(gaussian, rgba(15,23,42,0.06), 8, 0, 0, 2);"
+        );
+        return indicador;
+    }
+
+    // --------------------------------------------------
+    // MENSAGENS DE FEEDBACK (sucesso, aviso e erro)
+    // --------------------------------------------------
+
+    private void mostrarSucesso(Label rotulo, String texto) {
+        mostrarFeedback(rotulo, "✔  " + texto, "#DCFCE7", "#166534", "#86EFAC");
+    }
+
+    private void mostrarAviso(Label rotulo, String texto) {
+        mostrarFeedback(rotulo, "⚠  " + texto, "#FEF3C7", "#92400E", "#FCD34D");
+    }
+
+    private void mostrarErro(Label rotulo, String texto) {
+        mostrarFeedback(rotulo, "✖  " + texto, "#FEE2E2", "#991B1B", "#FCA5A5");
+    }
+
+    private void mostrarFeedback(
+        Label rotulo, String texto, String fundo, String cor, String borda
     ) {
+        rotulo.setText(texto);
+        rotulo.setWrapText(true);
+        rotulo.setMaxWidth(Double.MAX_VALUE);
+        rotulo.setPadding(new Insets(10, 14, 10, 14));
+        rotulo.setStyle(
+            "-fx-background-color: " + fundo + ";" +
+            "-fx-text-fill: " + cor + ";" +
+            "-fx-border-color: " + borda + ";" +
+            "-fx-border-radius: 6px;" +
+            "-fx-background-radius: 6px;" +
+            "-fx-font-weight: bold;"
+        );
+        rotulo.setVisible(true);
+        rotulo.setManaged(true);
+    }
+
+    private void limparFeedback(Label rotulo) {
+        rotulo.setText("");
+        rotulo.setVisible(false);
+        rotulo.setManaged(false);
+    }
+
+    // --------------------------------------------------
+    // SITUAÇÃO DA PESQUISA
+    // --------------------------------------------------
+
+    private String rotuloSituacao(Situacao situacao) {
+        return switch (situacao) {
+            case PLANEJADA -> "Planejada";
+            case EM_COLETA -> "Em coleta";
+            case ENCERRADA -> "Encerrada";
+            case PROCESSADA -> "Processada";
+        };
+    }
+
+    private String descricaoPesquisa(PesquisaResumo pesquisa) {
+        return pesquisa.nome() + " (" + pesquisa.codigo() + ") — "
+            + rotuloSituacao(pesquisa.situacao());
+    }
+
+    private boolean estaProcessada(PesquisaResumo pesquisa) {
+        return pesquisa != null && pesquisa.situacao() == Situacao.PROCESSADA;
+    }
+
+    private boolean podeProcessar(PesquisaResumo pesquisa) {
+        return pesquisa != null
+            && (pesquisa.situacao() == Situacao.ENCERRADA
+                || pesquisa.situacao() == Situacao.PROCESSADA);
+    }
+
+    private void atualizarBadge(PesquisaResumo pesquisa) {
+        String texto;
+        String fundo;
+        String cor;
+
+        if (pesquisa == null) {
+            texto = "—";
+            fundo = "#E5E7EB";
+            cor = "#374151";
+        } else {
+            String[] estilo = switch (pesquisa.situacao()) {
+                case PLANEJADA -> new String[]{"Planejada", "#E5E7EB", "#374151"};
+                case EM_COLETA -> new String[]{"Em coleta", "#FEF3C7", "#92400E"};
+                case ENCERRADA -> new String[]{"Encerrada", "#DBEAFE", "#1E40AF"};
+                case PROCESSADA -> new String[]{"Processada", "#DCFCE7", "#166534"};
+            };
+            texto = estilo[0];
+            fundo = estilo[1];
+            cor = estilo[2];
+        }
+
+        situacaoBadge.setText(texto);
+        situacaoBadge.setStyle(
+            "-fx-background-color: " + fundo + ";" +
+            "-fx-text-fill: " + cor + ";" +
+            "-fx-font-weight: bold;" +
+            "-fx-padding: 3px 12px;" +
+            "-fx-background-radius: 12px;"
+        );
+    }
+
+    private String dicaDeProcessamento(PesquisaResumo pesquisa) {
+        if (pesquisa == null) {
+            return "Nenhuma pesquisa selecionada.";
+        }
+        return switch (pesquisa.situacao()) {
+            case PLANEJADA, EM_COLETA ->
+                "Disponível após o encerramento da coleta.";
+            case ENCERRADA ->
+                "Pronta para ser processada.";
+            case PROCESSADA ->
+                "Já processada. Processar novamente atualiza o resultado.";
+        };
+    }
+
+    /** Habilita ou bloqueia os botões conforme a situação das pesquisas selecionadas. */
+    private void atualizarEstadoBotoes() {
+        PesquisaResumo selecionada = selecaoPesquisa.getValue();
+        atualizarBadge(selecionada);
+        btnProcessar.setDisable(!podeProcessar(selecionada));
+        dicaProcessamento.setText(dicaDeProcessamento(selecionada));
+
+        boolean comparacaoLiberada =
+            estaProcessada(pesquisaA.getValue()) && estaProcessada(pesquisaB.getValue());
+        btnComparar.setDisable(!comparacaoLiberada);
+        dicaComparacao.setText(comparacaoLiberada
+            ? ""
+            : "Selecione duas pesquisas já processadas.");
+
+        boolean relatorioLiberado = estaProcessada(pesquisaRelatorio.getValue());
+        btnGerar.setDisable(!relatorioLiberado);
+        dicaRelatorio.setText(relatorioLiberado
+            ? ""
+            : "Disponível apenas para pesquisas já processadas.");
+    }
+
+    // --------------------------------------------------
+    // COMBO DE PESQUISAS
+    // --------------------------------------------------
+
+    private void configurarComboPesquisa(ComboBox<PesquisaResumo> combo) {
         combo.setPromptText("Selecione uma pesquisa");
-        combo.setPrefWidth(280);
+        combo.setPrefWidth(340);
 
         combo.setCellFactory(lista -> new ListCell<PesquisaResumo>() {
             @Override
@@ -172,7 +485,7 @@ public class GestaoAnalise implements Tela {
                 super.updateItem(pesquisa, vazio);
                 setText(vazio || pesquisa == null
                     ? null
-                    : pesquisa.nome() + " (" + pesquisa.codigo() + ")");
+                    : descricaoPesquisa(pesquisa));
             }
         });
 
@@ -182,7 +495,7 @@ public class GestaoAnalise implements Tela {
                 super.updateItem(pesquisa, vazio);
                 setText(vazio || pesquisa == null
                     ? null
-                    : pesquisa.nome() + " (" + pesquisa.codigo() + ")");
+                    : descricaoPesquisa(pesquisa));
             }
         });
     }
@@ -194,72 +507,78 @@ public class GestaoAnalise implements Tela {
     private VBox criarAbaResultados() {
         Label titulo = criarTitulo("Resultados das pesquisas");
 
-        Label descricao = new Label(
+        Label descricao = criarTextoSuave(
             "Selecione uma pesquisa e informe a pergunta que deseja processar."
         );
 
         configurarComboPesquisa(selecaoPesquisa);
         campoPergunta.setPromptText("Ex.: Q1");
-        campoPergunta.setPrefWidth(100);
+        campoPergunta.setPrefWidth(90);
 
         configurarBotao(btnProcessar);
         btnProcessar.setOnAction(e -> processarPesquisa());
 
-        HBox formulario = new HBox(
-            10,
-            new Label("Pesquisa:"),
+        FlowPane formulario = new FlowPane(
+            10, 10,
+            criarRotulo("Pesquisa:"),
             selecaoPesquisa,
-            new Label("Pergunta:"),
+            criarRotulo("Pergunta:"),
             campoPergunta,
             btnProcessar
         );
         formulario.setAlignment(Pos.CENTER_LEFT);
 
-        situacaoPesquisa.setStyle("-fx-text-fill: #64748B;");
+        dicaProcessamento.setStyle("-fx-text-fill: " + TEXTO_SUAVE + ";");
 
-        Label tituloTotal = new Label("Total de respostas");
-        Label tituloValidas = new Label("Respostas válidas");
+        HBox situacao = new HBox(
+            10,
+            criarRotulo("Situação:"),
+            situacaoBadge,
+            dicaProcessamento
+        );
+        situacao.setAlignment(Pos.CENTER_LEFT);
 
-        HBox indicadores = new HBox(30,
-            new VBox(5, tituloTotal, totalRespostas),
-            new VBox(5, tituloValidas, respostasValidas)
+        VBox cartaoSelecao = criarCartao(
+            "Processar pesquisa", formulario, situacao
         );
 
-        totalRespostas.setStyle(
-            "-fx-font-size: 22px; -fx-font-weight: bold;"
-        );
-        respostasValidas.setStyle(
-            "-fx-font-size: 22px; -fx-font-weight: bold;"
+        HBox indicadores = new HBox(
+            16,
+            criarIndicador("Total de respostas", totalRespostas),
+            criarIndicador("Respostas válidas", respostasValidas)
         );
 
-        mensagem.setWrapText(true);
-        distribuicao.getChildren().clear();
+        VBox cartaoGrafico = criarCartao(
+            "Distribuição das respostas válidas (%)", grafico
+        );
+
+        VBox cartaoDistribuicao = criarCartao("Detalhamento", distribuicao);
+
+        painelResultado.getChildren().setAll(
+            indicadores, cartaoGrafico, cartaoDistribuicao
+        );
 
         return new VBox(
             18,
             titulo,
             descricao,
-            formulario,
-            situacaoPesquisa,
-            indicadores,
+            cartaoSelecao,
             mensagem,
-            distribuicao
+            painelResultado
         );
     }
 
     private void processarPesquisa() {
-        PesquisaResumo pesquisa =
-            selecaoPesquisa.getSelectionModel().getSelectedItem();
-
+        PesquisaResumo pesquisa = selecaoPesquisa.getValue();
         String pergunta = campoPergunta.getText().trim();
 
         if (pesquisa == null) {
-            mensagem.setText("Selecione uma pesquisa.");
+            mostrarAviso(mensagem, "Selecione uma pesquisa.");
             return;
         }
 
         if (pergunta.isEmpty()) {
-            mensagem.setText("Informe o identificador da pergunta.");
+            mostrarAviso(mensagem, "Informe o identificador da pergunta.");
             return;
         }
 
@@ -277,12 +596,6 @@ public class GestaoAnalise implements Tela {
                 String.valueOf(resultado.totalValidas())
             );
 
-            situacaoPesquisa.setText(
-                "Pesquisa processada: " + pesquisa.nome()
-            );
-
-            mensagem.setText("Processamento concluído com sucesso.");
-
             distribuicao.getChildren().clear();
 
             adicionarSecaoResultados(
@@ -295,8 +608,25 @@ public class GestaoAnalise implements Tela {
                 resultado.linhasEspeciais()
             );
 
+            atualizarGrafico(resultado.linhasValidas());
+
+            painelResultado.setVisible(true);
+            painelResultado.setManaged(true);
+
+            mostrarSucesso(
+                mensagem,
+                "Processamento concluído: " + pesquisa.nome()
+                    + " (pergunta " + pergunta + ")."
+            );
+
+            // A situação da pesquisa mudou para "Processada": atualiza a tela.
+            carregarPesquisas(false);
+
         } catch (RuntimeException erro) {
-            mensagem.setText(
+            painelResultado.setVisible(false);
+            painelResultado.setManaged(false);
+            mostrarErro(
+                mensagem,
                 "Não foi possível processar: " + erro.getMessage()
             );
         }
@@ -307,8 +637,9 @@ public class GestaoAnalise implements Tela {
         List<Resultado.LinhaResultado> linhas
     ) {
         Label tituloSecao = new Label(titulo);
+        tituloSecao.setPadding(new Insets(8, 0, 4, 0));
         tituloSecao.setStyle(
-            "-fx-font-size: 16px;" +
+            "-fx-font-size: 14px;" +
             "-fx-font-weight: bold;" +
             "-fx-text-fill: " + AZUL + ";"
         );
@@ -317,33 +648,84 @@ public class GestaoAnalise implements Tela {
 
         if (linhas.isEmpty()) {
             distribuicao.getChildren().add(
-                new Label("Nenhum resultado para exibir.")
+                criarTextoSuave("Nenhum resultado para exibir.")
             );
             return;
         }
 
         for (Resultado.LinhaResultado linha : linhas) {
-            Label rotulo = new Label(linha.rotulo());
-            Label quantidade = new Label(
-                String.valueOf(linha.absoluto())
-            );
-            Label percentual = new Label(
-                String.format("%.1f%%", linha.percentual())
-            );
-
-            HBox linhaVisual = new HBox(
-                20, rotulo, quantidade, percentual
-            );
-
-            linhaVisual.setAlignment(Pos.CENTER_LEFT);
-            linhaVisual.setPadding(new Insets(8));
-            linhaVisual.setStyle(
-                "-fx-background-color: white;" +
-                "-fx-background-radius: 5px;"
-            );
-
-            distribuicao.getChildren().add(linhaVisual);
+            distribuicao.getChildren().add(criarLinhaResultado(linha));
         }
+    }
+
+    private HBox criarLinhaResultado(Resultado.LinhaResultado linha) {
+        Label rotulo = new Label(linha.rotulo());
+        rotulo.setMinWidth(220);
+        rotulo.setPrefWidth(220);
+
+        double progresso = Math.max(0, Math.min(1, linha.percentual() / 100.0));
+        ProgressBar barra = new ProgressBar(progresso);
+        barra.setPrefWidth(260);
+        barra.setStyle("-fx-accent: " + AZUL + ";");
+
+        Label quantidade = new Label(String.valueOf(linha.absoluto()));
+        quantidade.setMinWidth(50);
+        quantidade.setAlignment(Pos.CENTER_RIGHT);
+
+        Label percentual = new Label(String.format("%.1f%%", linha.percentual()));
+        percentual.setMinWidth(60);
+        percentual.setStyle("-fx-font-weight: bold; -fx-text-fill: " + AZUL + ";");
+
+        HBox linhaVisual = new HBox(16, rotulo, barra, quantidade, percentual);
+        linhaVisual.setAlignment(Pos.CENTER_LEFT);
+        linhaVisual.setPadding(new Insets(8, 0, 8, 0));
+        linhaVisual.setStyle(
+            "-fx-border-color: transparent transparent #E5E7EB transparent;"
+        );
+
+        return linhaVisual;
+    }
+
+    // --------------------------------------------------
+    // GRÁFICO
+    // --------------------------------------------------
+
+    private void configurarGrafico() {
+        eixoX.setLabel("Opções de resposta");
+
+        eixoY.setLabel("Percentual (%)");
+        eixoY.setAutoRanging(false);
+        eixoY.setLowerBound(0);
+        eixoY.setUpperBound(100);
+        eixoY.setTickUnit(20);
+
+        grafico.setLegendVisible(false);
+        grafico.setAnimated(false);
+        grafico.setCategoryGap(24);
+        grafico.setMinHeight(280);
+        grafico.setPrefHeight(320);
+    }
+
+    private void atualizarGrafico(List<Resultado.LinhaResultado> linhas) {
+        grafico.getData().clear();
+
+        XYChart.Series<String, Number> serie = new XYChart.Series<>();
+
+        for (Resultado.LinhaResultado linha : linhas) {
+            XYChart.Data<String, Number> ponto =
+                new XYChart.Data<>(linha.rotulo(), linha.percentual());
+
+            // Pinta as barras com a cor do tema assim que o nó for criado.
+            ponto.nodeProperty().addListener((obs, antigo, no) -> {
+                if (no != null) {
+                    no.setStyle("-fx-bar-fill: " + AZUL + ";");
+                }
+            });
+
+            serie.getData().add(ponto);
+        }
+
+        grafico.getData().add(serie);
     }
 
     // --------------------------------------------------
@@ -353,7 +735,7 @@ public class GestaoAnalise implements Tela {
     private VBox criarAbaComparacoes() {
         Label titulo = criarTitulo("Comparação de pesquisas");
 
-        Label descricao = new Label(
+        Label descricao = criarTextoSuave(
             "Compare os resultados de duas pesquisas compatíveis."
         );
 
@@ -366,37 +748,45 @@ public class GestaoAnalise implements Tela {
         perguntaB.setPrefWidth(100);
 
         VBox grupoA = new VBox(8,
-            new Label("Pesquisa A"),
+            criarRotulo("Pesquisa A"),
             pesquisaA,
-            new Label("Pergunta"),
+            criarRotulo("Pergunta"),
             perguntaA
         );
 
         VBox grupoB = new VBox(8,
-            new Label("Pesquisa B"),
+            criarRotulo("Pesquisa B"),
             pesquisaB,
-            new Label("Pergunta"),
+            criarRotulo("Pergunta"),
             perguntaB
         );
 
-        HBox selecao = new HBox(30, grupoA, grupoB);
-        selecao.setAlignment(Pos.CENTER_LEFT);
+        HBox selecao = new HBox(40, grupoA, grupoB);
+        selecao.setAlignment(Pos.TOP_LEFT);
 
-        Button btnComparar = new Button("Comparar pesquisas");
         configurarBotao(btnComparar);
         btnComparar.setOnAction(e -> compararPesquisas());
 
-        mensagemComparacao.setWrapText(true);
+        dicaComparacao.setStyle("-fx-text-fill: " + TEXTO_SUAVE + ";");
+
+        HBox acao = new HBox(12, btnComparar, dicaComparacao);
+        acao.setAlignment(Pos.CENTER_LEFT);
+
+        VBox cartaoSelecao = criarCartao("Pesquisas a comparar", selecao, acao);
+
+        VBox cartaoRelatorio = criarCartao(
+            "Resultado da comparação",
+            areaRelatorio,
+            criarBotoesExportacao()
+        );
 
         return new VBox(
             18,
             titulo,
             descricao,
-            selecao,
-            btnComparar,
+            cartaoSelecao,
             mensagemComparacao,
-            areaRelatorio,
-            criarBotoesExportacao()
+            cartaoRelatorio
         );
     }
 
@@ -408,14 +798,13 @@ public class GestaoAnalise implements Tela {
         String pergunta2 = perguntaB.getText().trim();
 
         if (a == null || b == null) {
-            mensagemComparacao.setText(
-                "Selecione as duas pesquisas."
-            );
+            mostrarAviso(mensagemComparacao, "Selecione as duas pesquisas.");
             return;
         }
 
         if (pergunta1.isEmpty() || pergunta2.isEmpty()) {
-            mensagemComparacao.setText(
+            mostrarAviso(
+                mensagemComparacao,
                 "Informe as perguntas das duas pesquisas."
             );
             return;
@@ -431,16 +820,14 @@ public class GestaoAnalise implements Tela {
 
             exibirRelatorio(relatorioAtual);
 
-            mensagemComparacao.setText(
-                "Comparação gerada com sucesso."
-            );
+            mostrarSucesso(mensagemComparacao, "Comparação gerada com sucesso.");
 
         } catch (RuntimeException erro) {
             relatorioAtual = null;
             areaRelatorio.clear();
-            mensagemComparacao.setText(
-                "Não foi possível comparar as pesquisas: "
-                + erro.getMessage()
+            mostrarErro(
+                mensagemComparacao,
+                "Não foi possível comparar as pesquisas: " + erro.getMessage()
             );
         }
     }
@@ -452,13 +839,13 @@ public class GestaoAnalise implements Tela {
     private VBox criarAbaRelatorios() {
         Label titulo = criarTitulo("Relatórios estatísticos");
 
-        Label descricao = new Label(
+        Label descricao = criarTextoSuave(
             "Gere relatórios com filtros opcionais e exporte o resultado."
         );
 
         configurarComboPesquisa(pesquisaRelatorio);
         perguntaRelatorio.setPromptText("Ex.: Q1");
-        perguntaRelatorio.setPrefWidth(100);
+        perguntaRelatorio.setPrefWidth(90);
 
         dataInicio.setPromptText("Data inicial");
         dataFim.setPromptText("Data final");
@@ -487,49 +874,64 @@ public class GestaoAnalise implements Tela {
         valorCaracteristica.setPromptText("Valor da característica");
         valorCaracteristica.setPrefWidth(200);
 
-        HBox linhaPesquisa = new HBox(
-            10,
-            new Label("Pesquisa:"),
+        FlowPane linhaPesquisa = new FlowPane(
+            10, 10,
+            criarRotulo("Pesquisa:"),
             pesquisaRelatorio,
-            new Label("Pergunta:"),
+            criarRotulo("Pergunta:"),
             perguntaRelatorio
         );
         linhaPesquisa.setAlignment(Pos.CENTER_LEFT);
 
-        HBox linhaPeriodo = new HBox(
-            10,
-            new Label("De:"),
+        VBox cartaoPesquisa = criarCartao("Pesquisa e pergunta", linhaPesquisa);
+
+        FlowPane linhaPeriodo = new FlowPane(
+            10, 10,
+            criarRotulo("De:"),
             dataInicio,
-            new Label("Até:"),
+            criarRotulo("Até:"),
             dataFim
         );
         linhaPeriodo.setAlignment(Pos.CENTER_LEFT);
 
-        HBox linhaCaracteristica = new HBox(
-            10,
+        FlowPane linhaCaracteristica = new FlowPane(
+            10, 10,
+            criarRotulo("Característica:"),
             dimensao,
             valorCaracteristica
         );
         linhaCaracteristica.setAlignment(Pos.CENTER_LEFT);
 
-        Button btnGerar = new Button("Gerar relatório");
+        VBox cartaoFiltros = criarCartao(
+            "Filtros (opcionais)",
+            linhaPeriodo,
+            linhaCaracteristica,
+            incluirCruzamentos
+        );
+
         configurarBotao(btnGerar);
         btnGerar.setOnAction(e -> gerarRelatorio());
 
-        mensagemRelatorio.setWrapText(true);
+        dicaRelatorio.setStyle("-fx-text-fill: " + TEXTO_SUAVE + ";");
+
+        HBox acao = new HBox(12, btnGerar, dicaRelatorio);
+        acao.setAlignment(Pos.CENTER_LEFT);
+
+        VBox cartaoRelatorio = criarCartao(
+            "Relatório",
+            areaRelatorio,
+            criarBotoesExportacao()
+        );
 
         return new VBox(
             18,
             titulo,
             descricao,
-            linhaPesquisa,
-            linhaPeriodo,
-            linhaCaracteristica,
-            incluirCruzamentos,
-            btnGerar,
+            cartaoPesquisa,
+            cartaoFiltros,
+            acao,
             mensagemRelatorio,
-            areaRelatorio,
-            criarBotoesExportacao()
+            cartaoRelatorio
         );
     }
 
@@ -538,12 +940,13 @@ public class GestaoAnalise implements Tela {
         String pergunta = perguntaRelatorio.getText().trim();
 
         if (pesquisa == null) {
-            mensagemRelatorio.setText("Selecione uma pesquisa.");
+            mostrarAviso(mensagemRelatorio, "Selecione uma pesquisa.");
             return;
         }
 
         if (pergunta.isEmpty()) {
-            mensagemRelatorio.setText(
+            mostrarAviso(
+                mensagemRelatorio,
                 "Informe o identificador da pergunta."
             );
             return;
@@ -553,14 +956,16 @@ public class GestaoAnalise implements Tela {
         LocalDate fim = dataFim.getValue();
 
         if ((inicio == null) != (fim == null)) {
-            mensagemRelatorio.setText(
+            mostrarAviso(
+                mensagemRelatorio,
                 "Informe as duas datas do período ou deixe ambas vazias."
             );
             return;
         }
 
         if (inicio != null && fim.isBefore(inicio)) {
-            mensagemRelatorio.setText(
+            mostrarAviso(
+                mensagemRelatorio,
                 "A data final não pode ser anterior à inicial."
             );
             return;
@@ -570,7 +975,8 @@ public class GestaoAnalise implements Tela {
         String valor = valorCaracteristica.getText().trim();
 
         if ((caracteristica == null) != valor.isEmpty()) {
-            mensagemRelatorio.setText(
+            mostrarAviso(
+                mensagemRelatorio,
                 "Selecione uma característica e informe seu valor."
             );
             return;
@@ -599,16 +1005,14 @@ public class GestaoAnalise implements Tela {
 
             exibirRelatorio(relatorioAtual);
 
-            mensagemRelatorio.setText(
-                "Relatório gerado com sucesso."
-            );
+            mostrarSucesso(mensagemRelatorio, "Relatório gerado com sucesso.");
 
         } catch (RuntimeException erro) {
             relatorioAtual = null;
             areaRelatorio.clear();
-            mensagemRelatorio.setText(
-                "Não foi possível gerar o relatório: "
-                + erro.getMessage()
+            mostrarErro(
+                mensagemRelatorio,
+                "Não foi possível gerar o relatório: " + erro.getMessage()
             );
         }
     }
@@ -621,9 +1025,15 @@ public class GestaoAnalise implements Tela {
         areaRelatorio.setEditable(false);
         areaRelatorio.setWrapText(false);
         areaRelatorio.setPrefRowCount(18);
-        areaRelatorio.setPrefColumnCount(80);
+        areaRelatorio.setMinHeight(320);
+        areaRelatorio.setMaxWidth(Double.MAX_VALUE);
         areaRelatorio.setPromptText(
             "O relatório gerado será exibido aqui."
+        );
+        // Fonte monoespaçada: mantém as colunas da tabela alinhadas.
+        areaRelatorio.setStyle(
+            "-fx-font-family: 'monospaced';" +
+            "-fx-font-size: 12px;"
         );
     }
 
@@ -640,8 +1050,8 @@ public class GestaoAnalise implements Tela {
         Button btnPDF = new Button("Exportar PDF");
         Button btnCSV = new Button("Exportar CSV");
 
-        configurarBotao(btnPDF);
-        configurarBotao(btnCSV);
+        configurarBotaoSecundario(btnPDF);
+        configurarBotaoSecundario(btnCSV);
 
         btnPDF.setOnAction(e ->
             exportarRelatorio(FormatoExportacao.PDF)
@@ -660,6 +1070,7 @@ public class GestaoAnalise implements Tela {
     private void exportarRelatorio(FormatoExportacao formato) {
         if (relatorioAtual == null) {
             mostrarMensagemExportacao(
+                Alert.AlertType.WARNING,
                 "Gere um relatório ou comparação antes de exportar."
             );
             return;
@@ -714,18 +1125,20 @@ public class GestaoAnalise implements Tela {
             );
 
             mostrarMensagemExportacao(
+                Alert.AlertType.INFORMATION,
                 "Relatório salvo em: " + destino.toAbsolutePath()
             );
 
         } catch (RuntimeException erro) {
             mostrarMensagemExportacao(
+                Alert.AlertType.ERROR,
                 "Erro ao exportar: " + erro.getMessage()
             );
         }
     }
 
-    private void mostrarMensagemExportacao(String texto) {
-        Alert alerta = new Alert(Alert.AlertType.INFORMATION);
+    private void mostrarMensagemExportacao(Alert.AlertType tipo, String texto) {
+        Alert alerta = new Alert(tipo);
         alerta.setTitle("Exportação de relatório");
         alerta.setHeaderText(null);
         alerta.setContentText(texto);
@@ -736,44 +1149,70 @@ public class GestaoAnalise implements Tela {
     // CARREGAMENTO DAS PESQUISAS
     // --------------------------------------------------
 
-    private void carregarPesquisas() {
+    /**
+     * Carrega as pesquisas nos seletores, mantendo a pesquisa já escolhida.
+     * Com mostrarMensagens = false, falhas são ignoradas (usado para apenas
+     * atualizar a situação das pesquisas depois de um processamento).
+     */
+    private void carregarPesquisas(boolean mostrarMensagens) {
         try {
             if (Contexto.analise == null) {
-                mensagem.setText(
-                    "Serviço de análise não foi inicializado."
-                );
+                if (mostrarMensagens) {
+                    mostrarErro(
+                        mensagem,
+                        "Serviço de análise não foi inicializado."
+                    );
+                }
                 return;
             }
 
             List<PesquisaResumo> pesquisas =
                 Contexto.analise.listarPesquisas();
 
-            var itens = FXCollections.observableArrayList(pesquisas);
+            preencherCombo(selecaoPesquisa, pesquisas);
+            preencherCombo(pesquisaA, pesquisas);
+            preencherCombo(pesquisaB, pesquisas);
+            preencherCombo(pesquisaRelatorio, pesquisas);
 
-            selecaoPesquisa.setItems(itens);
-            pesquisaA.setItems(FXCollections.observableArrayList(pesquisas));
-            pesquisaB.setItems(FXCollections.observableArrayList(pesquisas));
-            pesquisaRelatorio.setItems(FXCollections.observableArrayList(pesquisas));
-
-            if (!pesquisas.isEmpty()) {
-                selecaoPesquisa.getSelectionModel().selectFirst();
-                pesquisaA.getSelectionModel().selectFirst();
-                pesquisaB.getSelectionModel().selectFirst();
-                pesquisaRelatorio.getSelectionModel().selectFirst();
-
-                situacaoPesquisa.setText(
-                    pesquisas.size() + " pesquisa(s) encontrada(s)."
-                );
-            } else {
-                situacaoPesquisa.setText(
-                    "Nenhuma pesquisa encontrada."
-                );
+            if (mostrarMensagens && pesquisas.isEmpty()) {
+                mostrarAviso(mensagem, "Nenhuma pesquisa encontrada.");
             }
 
         } catch (RuntimeException erro) {
-            mensagem.setText(
-                "Erro ao carregar pesquisas: " + erro.getMessage()
-            );
+            if (mostrarMensagens) {
+                mostrarErro(
+                    mensagem,
+                    "Erro ao carregar pesquisas: " + erro.getMessage()
+                );
+            }
         }
+    }
+
+    private void preencherCombo(
+        ComboBox<PesquisaResumo> combo,
+        List<PesquisaResumo> pesquisas
+    ) {
+        String codigoAnterior = combo.getValue() == null
+            ? null
+            : combo.getValue().codigo();
+
+        combo.setItems(FXCollections.observableArrayList(pesquisas));
+
+        PesquisaResumo escolhida = null;
+
+        if (codigoAnterior != null) {
+            for (PesquisaResumo p : pesquisas) {
+                if (p.codigo().equals(codigoAnterior)) {
+                    escolhida = p;
+                    break;
+                }
+            }
+        }
+
+        if (escolhida == null && !pesquisas.isEmpty()) {
+            escolhida = pesquisas.get(0);
+        }
+
+        combo.setValue(escolhida);
     }
 }
