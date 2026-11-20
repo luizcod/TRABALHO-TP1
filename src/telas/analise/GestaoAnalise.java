@@ -141,39 +141,16 @@ public class GestaoAnalise implements Tela {
         return raiz;
     }
 
-    private VBox criarCabecalho() {
-        Label titulo = new Label("Análise Estatística");
-        titulo.setStyle(
-            "-fx-font-size: 24px;" +
-            "-fx-font-weight: bold;" +
-            "-fx-text-fill: " + AZUL + ";"
-        );
-
-        Label descricao = new Label(
-            "Processamento de pesquisas, resultados e relatórios"
-        );
-        descricao.setStyle("-fx-text-fill: " + TEXTO_SUAVE + ";");
-
-        HBox navegacao = new HBox(10);
-        navegacao.setAlignment(Pos.CENTER_LEFT);
-        navegacao.setPadding(new Insets(15, 0, 0, 0));
-
+    private HBox criarCabecalho() {
         btnResultados.setOnAction(e -> mostrarAba("Resultados"));
         btnComparacoes.setOnAction(e -> mostrarAba("Comparações"));
         btnRelatorios.setOnAction(e -> mostrarAba("Relatórios"));
 
-        navegacao.getChildren().addAll(
-            btnResultados, btnComparacoes, btnRelatorios
-        );
-
-        VBox cabecalho = new VBox(8, titulo, descricao, navegacao);
-        cabecalho.setPadding(new Insets(24, 24, 18, 24));
-        cabecalho.setStyle(
-            "-fx-background-color: white;" +
-            "-fx-border-color: transparent transparent " + BORDA + " transparent;"
-        );
-
-        return cabecalho;
+        HBox navegacao = new HBox(10, btnResultados, btnComparacoes, btnRelatorios);
+        navegacao.setAlignment(Pos.CENTER_LEFT);
+        navegacao.setPadding(new Insets(15, 30, 10, 30));
+        navegacao.setStyle("-fx-background-color: " + FUNDO + ";");
+        return navegacao;
     }
 
     private void configurarListeners() {
@@ -215,26 +192,10 @@ public class GestaoAnalise implements Tela {
     // --------------------------------------------------
 
     private void estilizarNavegacao(Button botao, boolean ativo) {
-        String base =
-            "-fx-font-size: 13px;" +
-            "-fx-padding: 9px 18px;" +
-            "-fx-background-radius: 5px;" +
-            "-fx-border-radius: 5px;" +
-            "-fx-cursor: hand;";
-
         if (ativo) {
-            botao.setStyle(base +
-                "-fx-background-color: " + AZUL + ";" +
-                "-fx-text-fill: white;" +
-                "-fx-font-weight: bold;" +
-                "-fx-border-color: " + AZUL + ";"
-            );
+            botao.setStyle("-fx-background-color: #475569; -fx-text-fill: white; -fx-font-weight: bold;");
         } else {
-            botao.setStyle(base +
-                "-fx-background-color: white;" +
-                "-fx-text-fill: " + AZUL + ";" +
-                "-fx-border-color: " + BORDA + ";"
-            );
+            botao.setStyle("");
         }
     }
 
@@ -244,7 +205,7 @@ public class GestaoAnalise implements Tela {
             "-fx-text-fill: white;" +
             "-fx-font-size: 13px;" +
             "-fx-padding: 9px 18px;" +
-            "-fx-background-radius: 5px;" +
+            "-fx-background-radius: 3px;" +
             "-fx-cursor: hand;"
         );
     }
@@ -255,20 +216,18 @@ public class GestaoAnalise implements Tela {
             "-fx-text-fill: " + AZUL + ";" +
             "-fx-font-size: 13px;" +
             "-fx-padding: 8px 16px;" +
-            "-fx-background-radius: 5px;" +
+            "-fx-background-radius: 3px;" +
             "-fx-border-color: " + AZUL + ";" +
-            "-fx-border-radius: 5px;" +
+            "-fx-border-radius: 3px;" +
             "-fx-cursor: hand;"
         );
     }
 
     private Label criarTitulo(String texto) {
         Label titulo = new Label(texto);
-        titulo.setStyle(
-            "-fx-font-size: 20px;" +
-            "-fx-font-weight: bold;" +
-            "-fx-text-fill: " + AZUL + ";"
-        );
+        titulo.setMaxWidth(Double.MAX_VALUE);
+        titulo.setAlignment(Pos.CENTER);
+        titulo.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #1F2937;");
         return titulo;
     }
 
@@ -294,8 +253,8 @@ public class GestaoAnalise implements Tela {
         cartao.setStyle(
             "-fx-background-color: white;" +
             "-fx-border-color: " + BORDA + ";" +
-            "-fx-border-radius: 8px;" +
-            "-fx-background-radius: 8px;" +
+            "-fx-border-radius: 3px;" +
+            "-fx-background-radius: 3px;" +
             "-fx-effect: dropshadow(gaussian, rgba(15,23,42,0.06), 8, 0, 0, 2);"
         );
 
@@ -329,8 +288,8 @@ public class GestaoAnalise implements Tela {
         indicador.setStyle(
             "-fx-background-color: white;" +
             "-fx-border-color: " + BORDA + ";" +
-            "-fx-border-radius: 8px;" +
-            "-fx-background-radius: 8px;" +
+            "-fx-border-radius: 3px;" +
+            "-fx-background-radius: 3px;" +
             "-fx-effect: dropshadow(gaussian, rgba(15,23,42,0.06), 8, 0, 0, 2);"
         );
         return indicador;
@@ -341,32 +300,23 @@ public class GestaoAnalise implements Tela {
     // --------------------------------------------------
 
     private void mostrarSucesso(Label rotulo, String texto) {
-        mostrarFeedback(rotulo, "✔  " + texto, "#DCFCE7", "#166534", "#86EFAC");
+        mostrarFeedback(rotulo, texto, "#475569");   // sucesso neutro, como na Coleta
     }
 
     private void mostrarAviso(Label rotulo, String texto) {
-        mostrarFeedback(rotulo, "⚠  " + texto, "#FEF3C7", "#92400E", "#FCD34D");
+        mostrarFeedback(rotulo, texto, telas.Estilo.ERRO);
     }
 
     private void mostrarErro(Label rotulo, String texto) {
-        mostrarFeedback(rotulo, "✖  " + texto, "#FEE2E2", "#991B1B", "#FCA5A5");
+        mostrarFeedback(rotulo, texto, telas.Estilo.ERRO);
     }
 
-    private void mostrarFeedback(
-        Label rotulo, String texto, String fundo, String cor, String borda
-    ) {
+    private void mostrarFeedback(Label rotulo, String texto, String cor) {
         rotulo.setText(texto);
         rotulo.setWrapText(true);
         rotulo.setMaxWidth(Double.MAX_VALUE);
-        rotulo.setPadding(new Insets(10, 14, 10, 14));
-        rotulo.setStyle(
-            "-fx-background-color: " + fundo + ";" +
-            "-fx-text-fill: " + cor + ";" +
-            "-fx-border-color: " + borda + ";" +
-            "-fx-border-radius: 6px;" +
-            "-fx-background-radius: 6px;" +
-            "-fx-font-weight: bold;"
-        );
+        rotulo.setPadding(Insets.EMPTY);
+        rotulo.setStyle("-fx-text-fill: " + cor + "; -fx-font-size: 13px;");
         rotulo.setVisible(true);
         rotulo.setManaged(true);
     }
@@ -432,7 +382,7 @@ public class GestaoAnalise implements Tela {
             "-fx-text-fill: " + cor + ";" +
             "-fx-font-weight: bold;" +
             "-fx-padding: 3px 12px;" +
-            "-fx-background-radius: 12px;"
+            "-fx-background-radius: 3px;"
         );
     }
 

@@ -23,7 +23,7 @@ public class Login implements Tela {
     @Override
     public Parent getRoot() {
         Label titulo = new Label("Sistema de Análise de Pesquisas Eleitorais");
-        titulo.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #FFFFFF; -fx-background-color: #1F2937; -fx-padding: 30px");
+        titulo.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #F3F4F6; -fx-background-color: #1F2937; -fx-padding: 30px");
         titulo.setAlignment(Pos.CENTER);
         titulo.setMaxWidth(Double.MAX_VALUE);
 
@@ -45,8 +45,9 @@ public class Login implements Tela {
         Button entrar = new Button("Entrar");
         entrar.setDefaultButton(true);                 // Enter aciona o botão
         entrar.setOnAction(e -> Alertas.executar(this::entrar));
-        entrar.setStyle("-fx-font-size: 14px; -fx-font-weight: 800; -fx-text-fill: #FFFFFF; -fx-background-color: #1F2937; -fx-padding: 10");
-        entrar.setOnMouseEntered(e -> entrar.setStyle("-fx-cursor: hand; -fx-font-size: 14px; -fx-font-weight: 800; -fx-text-fill: #FFFFFF; -fx-background-color: #1F2937; -fx-padding: 10"));
+        entrar.setStyle("-fx-font-size: 14px; -fx-font-weight: 800; -fx-text-fill: #FFFFFF; -fx-background-color: #4B5563; -fx-padding: 10");
+        entrar.setOnMouseExited(e -> entrar.setStyle("-fx-font-size: 14px; -fx-font-weight: 800; -fx-text-fill: #FFFFFF; -fx-background-color: #4B5563; -fx-padding: 10"));
+        entrar.setOnMouseEntered(e -> entrar.setStyle("-fx-cursor: hand; -fx-font-size: 14px; -fx-font-weight: 800; -fx-text-fill: #F3F4F6; -fx-background-color: #1F2937; -fx-padding: 10"));
         VBox.setMargin(entrar, new Insets(30, 0, 0, 0));
 
         BorderPane raiz = new BorderPane();

@@ -23,8 +23,6 @@ import java.util.Comparator;
 import java.util.List;
 
 public class GestaoPara implements Tela {
-
-    /** Cada aba do mockup: textos da tela e se a categoria tem limites (mínimo/máximo). */
     private enum Aba {
         FAIXA_ETARIA("Faixa Etária", CategoriaParametro.FAIXA_ETARIA, true,
                 "Nova faixa etária", "Editar faixa etária",
@@ -73,7 +71,7 @@ public class GestaoPara implements Tela {
     private final Label mensagemErro = new Label();
 
     private Aba abaAtual;
-    private Parametro emEdicao;            // null = cadastrando um novo
+    private Parametro emEdicao;   //null= cadastrando um novo
 
 
     @Override
@@ -83,7 +81,7 @@ public class GestaoPara implements Tela {
         HBox linhaTitulo = new HBox(titulo);
         linhaTitulo.setAlignment(Pos.CENTER);
 
-        Label cabecalho = new Label("Parâmetros Gerais");
+        Label cabecalho = new Label(" ");
         cabecalho.setMaxWidth(Double.MAX_VALUE);
 
         ToggleGroup grupo = new ToggleGroup();
@@ -169,10 +167,17 @@ public class GestaoPara implements Tela {
         blocoMaximo.getChildren().addAll(rotulo("Valor máximo"), campoMaximo);
 
         Button salvar = new Button("Salvar");
+        salvar.setStyle("-fx-font-size: 14px; -fx-font-weight: 800; -fx-text-fill: #FFFFFF; -fx-background-color: #4B5563; -fx-padding: 8");
+        salvar.setOnMouseExited(e -> salvar.setStyle("-fx-font-size: 14px; -fx-font-weight: 800; -fx-text-fill: #FFFFFF; -fx-background-color: #4B5563; -fx-padding: 8"));
+        salvar.setOnMouseEntered(e -> salvar.setStyle("-fx-cursor: hand; -fx-font-size: 14px; -fx-font-weight: 800; -fx-text-fill: #F3F4F6; -fx-background-color: #1F2937; -fx-padding: 8"));
         salvar.setOnAction(e -> salvar());
 
         Button limpar = new Button("Limpar");
         limpar.setOnAction(e -> limparFormulario());
+        limpar.setStyle("-fx-font-size: 14px; -fx-font-weight: 800; -fx-text-fill: #FFFFFF; -fx-background-color: #4B5563; -fx-padding: 8");
+        limpar.setOnMouseExited(e -> limpar.setStyle("-fx-font-size: 14px; -fx-font-weight: 800; -fx-text-fill: #FFFFFF; -fx-background-color: #4B5563; -fx-padding: 8"));
+        limpar.setOnMouseEntered(e -> limpar.setStyle("-fx-cursor: hand; -fx-font-size: 14px; -fx-font-weight: 800; -fx-text-fill: #F3F4F6; -fx-background-color: #1F2937; -fx-padding: 8"));
+
 
         mensagemErro.setWrapText(true);
         mensagemErro.setMaxWidth(360);
@@ -193,7 +198,7 @@ public class GestaoPara implements Tela {
         return l;
     }
 
-    // ---------- comportamento ----------
+    //comportaemnto
 
     private void mudarAba(Aba aba) {
         if (aba == abaAtual) return;
@@ -306,7 +311,7 @@ public class GestaoPara implements Tela {
         }
     }
 
-    // ---------- leitura de números ----------
+    //numeros
 
     private int lerInteiro(String texto, String nome, boolean obrigatorio) {
         if (texto == null || texto.isBlank()) {

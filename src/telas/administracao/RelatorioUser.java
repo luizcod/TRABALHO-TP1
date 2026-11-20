@@ -42,6 +42,8 @@ public class RelatorioUser implements Tela {
     private final Label valorInativos = new Label("0");
     private final Label geradoEm = new Label();
 
+    private static final String AZUL = "#3B3F58";
+
     private final CategoryAxis eixoX = new CategoryAxis();
     private final NumberAxis eixoY = new NumberAxis();
     private final BarChart<String, Number> grafico = new BarChart<>(eixoX, eixoY);
@@ -69,6 +71,14 @@ public class RelatorioUser implements Tela {
         atualizar.setOnAction(e -> Alertas.executar(this::atualizar));
         Button exportar = new Button("Exportar CSV");
         exportar.setOnAction(e -> Alertas.executar(() -> exportar((Node) e.getSource())));
+        exportar.setStyle("-fx-font-size: 14px; -fx-font-weight: 800; -fx-text-fill: #FFFFFF; -fx-background-color: #4B5563; -fx-padding: 8");
+        exportar.setOnMouseExited(e -> exportar.setStyle("-fx-font-size: 14px; -fx-font-weight: 800; -fx-text-fill: #FFFFFF; -fx-background-color: #4B5563; -fx-padding: 8"));
+        exportar.setOnMouseEntered(e -> exportar.setStyle("-fx-cursor: hand; -fx-font-size: 14px; -fx-font-weight: 800; -fx-text-fill: #F3F4F6; -fx-background-color: #1F2937; -fx-padding: 8"));
+
+        atualizar.setStyle("-fx-font-size: 14px; -fx-font-weight: 800; -fx-text-fill: #FFFFFF; -fx-background-color: #4B5563; -fx-padding: 8");
+        atualizar.setOnMouseExited(e -> atualizar.setStyle("-fx-font-size: 14px; -fx-font-weight: 800; -fx-text-fill: #FFFFFF; -fx-background-color: #4B5563; -fx-padding: 8"));
+        atualizar.setOnMouseEntered(e -> atualizar.setStyle("-fx-cursor: hand; -fx-font-size: 14px; -fx-font-weight: 800; -fx-text-fill: #F3F4F6; -fx-background-color: #1F2937; -fx-padding: 8"));
+
 
         Region espaco = new Region();
         HBox.setHgrow(espaco, Priority.ALWAYS);
@@ -82,7 +92,7 @@ public class RelatorioUser implements Tela {
         return raiz;
     }
 
-    // ---------- montagem ----------
+    //montagem do graf
 
     private VBox cartao(String titulo, Label valor) {
         valor.setStyle("-fx-font-size: 30px; -fx-font-weight: bold;");
@@ -119,7 +129,7 @@ public class RelatorioUser implements Tela {
         return tabela;
     }
 
-    // ---------- dados ----------
+    //dados
 
     private void atualizar() {
         RelatorioUsuarios r = servico.gerarRelatorio();

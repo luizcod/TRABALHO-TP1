@@ -172,14 +172,14 @@ public class GestaoUser implements Tela {
         return rodape;
     }
 
-    // ---------- dados e paginação ----------
+    //ddados e paginação
 
-    private void filtrar() {                      // filtro mudou: volta à primeira página
+    private void filtrar() {           //pra voltar pra 1 pag
         pagina = 0;
         Alertas.executar(this::carregar);
     }
 
-    private void carregar() {                     // busca no serviço e mostra a página atual
+    private void carregar() {                     //mostra pag atual
         filtrados = new ArrayList<>(servico.pesquisar(campoBusca.getText(), perfilSelecionado(), statusSelecionado()));
         filtrados.sort(Comparator.comparing(Usuario::getNome, String.CASE_INSENSITIVE_ORDER));
         pagina = Math.min(pagina, totalPaginas() - 1);
@@ -218,6 +218,7 @@ public class GestaoUser implements Tela {
 
         Button proxima = new Button("Próxima");
         proxima.setDisable(pagina >= totalPaginas() - 1);
+        proxima.setStyle("-fx-cursor: hand");
         proxima.setOnAction(e -> irParaPagina(pagina + 1));
         paginacao.getChildren().add(proxima);
     }
@@ -252,7 +253,7 @@ public class GestaoUser implements Tela {
         }
     }
 
-   // existente == null: novo usuário; caso contrário, edição
+   // existente == null -> novo usuário. se não -> edição
     private void abrirDialogo(Usuario existente) {
         Dialog<ButtonType> dialogo = new Dialog<>();
         dialogo.setTitle(existente == null ? "Novo usuário" : "Editar usuário");
@@ -284,7 +285,6 @@ public class GestaoUser implements Tela {
         nome.setPrefWidth(320);
         dialogo.getDialogPane().setContent(form);
 
-        // O diálogo só fecha se o serviço aceitar; em caso de erro mostra a mensagem e continua aberto.
         Button botaoSalvar = (Button) dialogo.getDialogPane().lookupButton(salvarTipo);
         botaoSalvar.addEventFilter(ActionEvent.ACTION, ev -> {
             try {

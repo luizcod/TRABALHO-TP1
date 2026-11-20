@@ -70,8 +70,7 @@ public class TelaEntrevistadores implements Tela {
     // =====================================================================
 
     private ScrollPane montarArea() {
-        Label titulo = new Label("Entrevistadores");
-        titulo.setStyle(Estilo.fonte(22, true) + "-fx-text-fill: " + Estilo.TITULO_CLARO + ";");
+        HBox titulo = Estilo.titulo("Entrevistadores");
 
         HBox cartoes = new HBox(20, montarFormulario(), montarLista());
         VBox coluna = new VBox(18, titulo, cartoes, mensagem);

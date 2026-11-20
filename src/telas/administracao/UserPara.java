@@ -27,7 +27,7 @@ public class UserPara implements Tela {
         barra.setPadding(new Insets(15, 30, 0, 30));
         raiz.setTop(barra);
 
-        mostrar(Aba.USUARIOS);  // tela inicial da seção
+        mostrar(Aba.USUARIOS);
         return raiz;
     }
 
@@ -51,7 +51,7 @@ public class UserPara implements Tela {
 
     private static void destacar(Button b, boolean ativo) {
         if(ativo){
-            b.setStyle("-fx-background-color: #475569; -fx-text-fill: white; -fx-font-weight: bold;");
+            b.setStyle("-fx-background-color: #475569; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand");
         }else{
             b.setStyle("");
         }

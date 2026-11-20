@@ -1,8 +1,10 @@
 package telas.coleta;
 
+import javafx.geometry.Insets;
 import javafx.scene.Parent;
-import javafx.scene.control.Tab;
-import javafx.scene.control.TabPane;
+import javafx.scene.control.Button;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
 import telas.Tela;
 
 import java.util.function.Supplier;
@@ -13,31 +15,39 @@ import java.util.function.Supplier;
  * A tela de cada aba é criada de novo sempre que a aba é aberta, para mostrar dados atualizados
  * (por exemplo, um entrevistador recém-cadastrado já aparece em Registrar Entrevista).
  */
+
 public class GestaoCol implements Tela {
-    private final TabPane abas = new TabPane();
+    private final BorderPane raiz = new BorderPane();
+    private final Button btnRegistrar = new Button("Registrar Entrevista");
+    private final Button btnAcompanhar = new Button("Acompanhar Pesquisas");
+    private final Button btnEntrevistadores = new Button("Entrevistadores");
 
     @Override
     public Parent getRoot() {
-        abas.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
-        adicionar("Registrar Entrevista", TelaRegistrarEntrevista::new);
-        adicionar("Acompanhar Pesquisas", TelaAcompanharPesquisas::new);
-        adicionar("Entrevistadores", TelaEntrevistadores::new);
+        btnRegistrar.setOnAction(e -> mostrar(btnRegistrar, TelaRegistrarEntrevista::new));
+        btnAcompanhar.setOnAction(e -> mostrar(btnAcompanhar, TelaAcompanharPesquisas::new));
+        btnEntrevistadores.setOnAction(e -> mostrar(btnEntrevistadores, TelaEntrevistadores::new));
 
-        abas.getSelectionModel().selectedItemProperty().addListener((obs, antiga, nova) -> carregar(nova));
-        carregar(abas.getSelectionModel().getSelectedItem());
-        return abas;
+        HBox barra = new HBox(10, btnRegistrar, btnAcompanhar, btnEntrevistadores);
+        barra.setPadding(new Insets(15, 30, 10, 30));
+        raiz.setTop(barra);
+
+        mostrar(btnRegistrar, TelaRegistrarEntrevista::new);   // tela inicial da seção
+        return raiz;
     }
 
-    private void adicionar(String titulo, Supplier<Tela> fabrica) {
-        Tab aba = new Tab(titulo);
-        aba.setUserData(fabrica);
-        abas.getTabs().add(aba);
+    private void mostrar(Button ativo, Supplier<Tela> fabrica) {
+        raiz.setCenter(fabrica.get().getRoot());   // as telas já têm o próprio ScrollPane
+        for (Button b : new Button[]{btnRegistrar, btnAcompanhar, btnEntrevistadores}) {
+            destacar(b, b == ativo);
+        }
     }
 
-    @SuppressWarnings("unchecked")
-    private void carregar(Tab aba) {
-        if (aba == null) return;
-        Supplier<Tela> fabrica = (Supplier<Tela>) aba.getUserData();
-        aba.setContent(fabrica.get().getRoot());
+    private static void destacar(Button b, boolean ativo) {
+        if (ativo) {
+            b.setStyle("-fx-background-color: #475569; -fx-text-fill: white; -fx-font-weight: bold;");
+        } else {
+            b.setStyle("");
+        }
     }
 }

@@ -90,8 +90,7 @@ public class TelaAcompanharPesquisas implements Tela {
     }
 
     private VBox montarColuna() {
-        Label titulo = new Label("Acompanhar Pesquisas");
-        titulo.setStyle(Estilo.fonte(22, true) + "-fx-text-fill: " + Estilo.TITULO_CLARO + ";");
+        HBox titulo = Estilo.titulo("Acompanhar Pesquisas");
 
         mensagem.setStyle(Estilo.fonte(13, false));
         mensagem.setTextFill(Color.web(Estilo.ERRO));

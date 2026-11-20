@@ -7,6 +7,7 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.TextField;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.util.StringConverter;
@@ -28,7 +29,7 @@ public final class Estilo {
     public static final String ERRO = "#C0474B";
 
     /** Usa Inter se estiver instalada; senão, a próxima fonte sem serifa da lista. */
-    private static final String FAMILIA = "'Inter', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif";
+    private static final String FAMILIA = "System";
 
     private Estilo() {}
 
@@ -117,9 +118,9 @@ public final class Estilo {
     /** Botão com cantos arredondados e efeito ao passar o mouse. */
     private static Button botao(String texto, String normal, String hover, String corTexto, String borda) {
         Button b = new Button(texto);
-        String base = fonte(14, true) + "-fx-text-fill: " + corTexto + "; -fx-background-radius: 8;"
-                + " -fx-padding: 0 18 0 18;"
-                + (borda != null ? " -fx-border-color: " + borda + "; -fx-border-radius: 8;" : "");
+        String base = fonte(13, true) + "-fx-text-fill: " + corTexto + ";"
+                + " -fx-padding: 0 16 0 16;"
+                + (borda != null ? " -fx-border-color: " + borda + "; -fx-border-radius: 3;" : "");
         b.setPrefHeight(38);
         b.setMinHeight(38);
         b.setMinWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
@@ -128,5 +129,13 @@ public final class Estilo {
         b.setOnMouseEntered(e -> b.setStyle(base + " -fx-background-color: " + hover + ";"));
         b.setOnMouseExited(e -> b.setStyle(base + " -fx-background-color: " + normal + ";"));
         return b;
+    }
+    /** Título de página: negrito 16px, centralizado (igual ao da Administração). */
+    public static HBox titulo(String texto) {
+        Label l = new Label(texto);
+        l.setStyle(fonte(16, true) + "-fx-text-fill: " + TEXTO + ";");
+        HBox h = new HBox(l);
+        h.setAlignment(Pos.CENTER);
+        return h;
     }
 }
